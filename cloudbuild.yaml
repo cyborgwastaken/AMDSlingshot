@@ -1,0 +1,78 @@
+steps:
+  # ─── Build Frontend ────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/nutriquest/frontend:$SHORT_SHA'
+      - -t
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/nutriquest/frontend:latest'
+      - ./frontend
+    id: build-frontend
+
+  # ─── Build Backend ─────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - -t
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/nutriquest/backend:$SHORT_SHA'
+      - -t
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/nutriquest/backend:latest'
+      - ./backend
+    id: build-backend
+
+  # ─── Push Frontend ─────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/nutriquest/frontend:$SHORT_SHA'
+    waitFor: [build-frontend]
+
+  # ─── Push Backend ──────────────────────────────────────────────────────────
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - push
+      - '$_REGION-docker.pkg.dev/$PROJECT_ID/nutriquest/backend:$SHORT_SHA'
+    waitFor: [build-backend]
+
+  # ─── Deploy Frontend to Cloud Run ──────────────────────────────────────────
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - nutriquest-frontend
+      - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/nutriquest/frontend:$SHORT_SHA
+      - --region=$_REGION
+      - --platform=managed
+      - --allow-unauthenticated
+      - --memory=512Mi
+      - --cpu=1
+      - --min-instances=0
+      - --max-instances=10
+    waitFor: ['build-frontend']
+
+  # ─── Deploy Backend to Cloud Run ───────────────────────────────────────────
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - nutriquest-backend
+      - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/nutriquest/backend:$SHORT_SHA
+      - --region=$_REGION
+      - --platform=managed
+      - --allow-unauthenticated
+      - --memory=1Gi
+      - --cpu=1
+      - --min-instances=0
+      - --max-instances=10
+      - --set-secrets=GEMINI_API_KEY=gemini-api-key:latest
+      - --set-secrets=FIREBASE_CREDENTIALS=firebase-credentials:latest
+    waitFor: ['build-backend']
+
+substitutions:
+  _REGION: asia-south1
+
+options:
+  logging: CLOUD_LOGGING_ONLY
