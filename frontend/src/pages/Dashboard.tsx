@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../store/gameStore';
+import { useAuth } from '../hooks/useAuth';
 import { getEffectiveStats, computeHealthScore } from '../engine/statCalculator';
 import { levelProgress } from '../engine/xpSystem';
 import HeroAvatar from '../components/hero/HeroAvatar';
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const mealLogs = useGameStore((s) => s.mealLogs);
   const totalXp = useGameStore((s) => s.totalXp);
   const gold = useGameStore((s) => s.gold);
+  const { user, signOutUser } = useAuth();
 
   const stats = getEffectiveStats(hero);
   const healthScore = computeHealthScore(stats);
@@ -44,9 +46,15 @@ export default function Dashboard() {
             NutriQuest
           </span>
         </div>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex items-center gap-3 text-sm">
           <span className="text-yellow-400 font-bold" aria-label={`${gold} gold`}>💰 {gold}</span>
           <span className="text-green-400 font-bold" aria-label={`Health score ${healthScore}`}>❤️ {healthScore}</span>
+          {user?.photoURL && (
+            <img src={user.photoURL} alt={user.displayName ?? 'User'} className="w-7 h-7 rounded-full" />
+          )}
+          <button onClick={signOutUser} className="text-gray-500 hover:text-gray-300 text-xs transition-colors" aria-label="Sign out">
+            Sign out
+          </button>
         </div>
       </header>
 
